@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python run.py --config=./configs/resnet50.0.yml
+python train.py --config=./configs/resnet50.2.yml

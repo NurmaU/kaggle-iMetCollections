@@ -4,13 +4,13 @@ model:
     name: 'resnet50'
 
 data:
-    fold: 0
+    fold: 1
     train_dir: './dataset/train/'
     folds_dir: './data/folds.csv'
 
 train:
-    batch_size: 64
-    num_epochs: 6
+    batch_size: 50
+    num_epochs: 10
     report_each: 10
     patience: 10
 
