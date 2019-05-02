@@ -1,0 +1,17 @@
+mode: 'train'
+
+model: 
+    name: 'resnet50'
+
+data:
+    fold: 0
+
+train:
+    batch_size: 50
+    num_epochs: 6
+
+optimizer:
+    name: 'adam'
+    params:
+        lr : 0.0001
+
