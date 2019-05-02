@@ -26,14 +26,12 @@ from PIL import Image
 from torchvision import transforms
 from dataset import load_transform_image
 
+import yaml
+from easydict import EasyDict as edict
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-DATA_ROOT = Path('../data/')
-train_root = DATA_ROOT/'train'
-test_root = DATA_ROOT/'test'
 
-fold_n = 4
-batch_size = 32
 N_CLASSES = 1103
 patience = 10
 
@@ -41,9 +39,9 @@ def mean_df(df: pd.DataFrame) -> pd.DataFrame:
     return df.groupby(level=0).mean()
 
 
-def make_loader(df, image_transform, args):
-	dataset = TrainDataset(train_root, df, image_transform, debug = False)
-	dataloader = DataLoader(dataset, shuffle=True, batch_size=args.batch_size, num_workers=6)
+def make_loader(df, image_transform, config):
+	dataset = TrainDataset(Path(config.data.train_dir), df, image_transform, debug = False)
+	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.train.batch_size, num_workers=6)
 	return dataloader
 
 def write_event(log, step: int, **data):
@@ -107,7 +105,7 @@ def seed_torch(seed=1029):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
-def train(model, train_loader, valid_loader, params, args, fresh=False):
+def train(model, train_loader, valid_loader, params, config, fresh=False):
 
 	save = lambda epoch: torch.save({
 		'model':model.state_dict(),
@@ -116,10 +114,10 @@ def train(model, train_loader, valid_loader, params, args, fresh=False):
 		'valid_losses':valid_losses,
 		'lr':lr,
 		'best_valid_loss':best_valid_loss,
-	}, f'./savings/{model.name}_fold{args.fold}/model.pt')
+	}, f'./savings/{config.model.name}_fold{config.data.fold}/model.pt')
 
 
-	model_path = Path('./savings/')/(model.name + f'_fold{args.fold}')
+	model_path = Path('./savings/')/(model.name + f'_fold{config.data.fold}')
 	if not model_path.exists():
 		model_path.mkdir(parents=True, exist_ok=True)
 	if (model_path/'model.pt').exists():
@@ -261,45 +259,47 @@ def predict(model, args):
 	
 	df.to_csv(f'submission_{args.model}_{args.threshold}.csv', header=True)
 
-def main(args):
-	folds = pd.read_csv('./folds.csv')
+def main(config):
+	folds = pd.read_csv(config.data.folds_dir)
 
-	train_folds = folds[folds['fold'] != args.fold]
-	valid_folds = folds[folds['fold'] == args.fold]
-
-	train_loader = make_loader(train_folds, train_transform, args)
-	valid_loader = make_loader(valid_folds, test_transform, args)
-
-
-	model = getattr(models, args.model)(pretrained=True, num_classes=N_CLASSES).to(device)
-	# if args.pretrained:
-	# 	load(model, f'./savings/{model.name}/best_model.pt')
+	train_folds = folds[folds['fold'] != config.data.fold]
+	valid_folds = folds[folds['fold'] == config.data.fold]
 	
-
+	train_loader = make_loader(train_folds, train_transform, config)
+	valid_loader = make_loader(valid_folds, test_transform, config)
+	print(next(iter(train_loader)))
+	 
+	model = getattr(models, config.model.name)(pretrained=True, num_classes=N_CLASSES).to(device)
+	
 	fresh_params = list(model.fresh_params())
 	all_params = list(model.parameters())
 
-	if args.mode == 'train':
-		train(model, train_loader, valid_loader, fresh_params, args, fresh=True)
-		train(model, train_loader, valid_loader, all_params, args)
-	elif args.mode == 'validate':
+	if config.mode == 'train':
+		train(model, train_loader, valid_loader, fresh_params, config, fresh=True)
+		train(model, train_loader, valid_loader, all_params, config)
+	elif config.mode == 'validate':
 		metrics = validate(model, valid_loader)
 		pprint(metrics)
-	elif args.mode == 'predict':
+	elif config.mode == 'predict':
 		predict(model, args)
 
+def parse_args():
+	parser = argparse.ArgumentParser()
+	arg = parser.add_argument
+	arg('--config', type=str)
+	args = parser.parse_args()
+
+	return args
+
+def get_args(config_path):
+	with open(config_path) as f:
+		config = edict(yaml.load(f))
+
+	return config
 
 if __name__ =='__main__':
 	seed_torch()
-	parser = argparse.ArgumentParser()
-	arg = parser.add_argument
-	arg('mode', choices = ['train', 'validate', 'predict'])
-	arg('--model', default='resnet50')
-	arg('--pretrained', type=int, default=1)
-	arg('--batch_size', type=int, default=32)
-	arg('--threshold', type=float, default=0.5)
-	arg('--fold', type=int, default = 0)
-
-	args = parser.parse_args()
-	
-	main(args)
+	args = parse_args()
+	config = get_args(args.config)
+	pprint(config)
+	main(config)

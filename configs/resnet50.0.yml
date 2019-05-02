@@ -1,10 +1,12 @@
 mode: 'train'
 
-model: 
+model:
     name: 'resnet50'
 
 data:
     fold: 0
+    train_dir: '../iMET Collection/data/train/'
+    folds_dir: './data/folds.csv'
 
 train:
     batch_size: 50
@@ -14,4 +16,3 @@ optimizer:
     name: 'adam'
     params:
         lr : 0.0001
-
