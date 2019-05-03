@@ -200,18 +200,21 @@ def parse_args():
 	arg('--batch_size', type=int, default=32)
 	args = parser.parse_args()
 
-	return args
+	with open(args.config) as f:
+		config = yaml.load(f)
+	
+
+	return edict(config)
 
 def get_args(config_path):
-	with open(config_path) as f:
-		config = edict(yaml.load(f))
+	
 
 	return config
 
 if __name__ =='__main__':
 	seed_torch()
-	args = parse_args()
-	config = get_args(args.config)
+	config = parse_args()
+	
 	pprint(config)
 	main(config)
 
