@@ -1,0 +1,20 @@
+mode: 'train'
+
+model:
+    name: 'densenet121'
+
+data:
+    fold: 0
+    train_dir: './dataset/train/'
+    folds_dir: './data/folds.csv'
+
+train:
+    batch_size: 64
+    num_epochs: 6
+    report_each: 10
+    patience: 10
+
+optimizer:
+    name: 'adam'
+    params:
+        lr : 0.0001
