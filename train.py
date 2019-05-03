@@ -202,7 +202,7 @@ def parse_args():
 
 	with open(args.config) as f:
 		config = yaml.load(f)
-	
+	config = {**config, **args}
 
 	return edict(config)
 
