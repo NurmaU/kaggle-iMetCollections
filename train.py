@@ -27,7 +27,7 @@ N_CLASSES = 1103
 
 def make_loader(df, image_transform, config):
 	dataset = TrainDataset(Path(config.data.train_dir), df, image_transform, debug = False)
-	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.train.batch_size, num_workers=6)
+	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.batch_size, num_workers=6)
 	return dataloader
 
 def compute_my_loss(logits, target):
@@ -88,7 +88,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 	try:
 		for epoch in range(config.train.num_epochs):
 			
-			tq = tqdm.tqdm(total=len(train_loader) * config.train.batch_size)
+			tq = tqdm.tqdm(total=len(train_loader) * config.batch_size)
 			model.train()
 			for step, (images, labels) in enumerate(train_loader):
 				tq.set_description(f'Epoch {epoch}, Iteration {step}')
@@ -105,7 +105,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 
 				train_losses.append(loss.item())
 
-				tq.update(config.train.batch_size)
+				tq.update(config.batch_size)
 				mean_loss = np.mean(train_losses[-config.train.report_each:])
 				tq.set_postfix(train_loss=f'{mean_loss:.5f}', valid_loss=valid_loss, best_valid_loss=best_valid_loss)
 				
@@ -207,70 +207,70 @@ def get_args(config_path):
 
 	return config
 
-# if __name__ =='__main__':
-# 	seed_torch()
-# 	args = parse_args()
-# 	config = get_args(args.config)
-# 	pprint(config)
-# 	main(config)
-
-def train_one_batch():
-
-
-	images = np.load('./data/one_batch_images.npy')
-	labels = np.load('./data/one_batch_labels.npy')
-	
-
-	model = getattr(models, 'resnet50')(pretrained=True, num_classes=N_CLASSES).to(device)
-	
-	train_losses = []
-	
-	model.train()
-	images = torch.from_numpy(images).to(device)
-	labels = torch.from_numpy(labels).to(device)
-	
-	images = images[0].unsqueeze(0)
-	labels = labels[0].unsqueeze(0)
-	print(labels.cpu().numpy().sum())
-
-	optimizer = optim.Adam(list(model.fresh_params()), 0.1)
-	try:
-		for epoch in range(1000):
-			
-
-			logits = model(images)
-			loss = compute_my_loss(logits, labels)
-
-			optimizer.zero_grad()
-			loss.backward()
-			optimizer.step()
-
-			train_losses.append(loss.item())
-
-			print('Loss = ', train_losses[-1])
-			
-	except KeyboardInterrupt:
-		return
-
-	optimizer = optim.Adam(list(model.params()), 0.0001)
-	try:
-		for epoch in range(1000):
-			
-			logits = model(images)
-			loss = compute_my_loss(logits, labels)
-
-			optimizer.zero_grad()
-			loss.backward()
-			optimizer.step()
-
-			train_losses.append(loss.item())
-
-			mean_loss = np.mean(train_losses[-10:])
-			print(mean_loss)
-			
-	except KeyboardInterrupt:
-		return
-
-if __name__ == '__main__':
+if __name__ =='__main__':
 	seed_torch()
-	train_one_batch()
+	args = parse_args()
+	config = get_args(args.config)
+	pprint(config)
+	main(config)
+
+# def train_one_batch():
+
+
+# 	images = np.load('./data/one_batch_images.npy')
+# 	labels = np.load('./data/one_batch_labels.npy')
+	
+
+# 	model = getattr(models, 'resnet50')(pretrained=True, num_classes=N_CLASSES).to(device)
+	
+# 	train_losses = []
+	
+# 	model.train()
+# 	images = torch.from_numpy(images).to(device)
+# 	labels = torch.from_numpy(labels).to(device)
+	
+# 	images = images[0].unsqueeze(0)
+# 	labels = labels[0].unsqueeze(0)
+# 	print(labels.cpu().numpy().sum())
+
+# 	optimizer = optim.Adam(list(model.fresh_params()), 0.1)
+# 	try:
+# 		for epoch in range(1000):
+			
+
+# 			logits = model(images)
+# 			loss = compute_my_loss(logits, labels)
+
+# 			optimizer.zero_grad()
+# 			loss.backward()
+# 			optimizer.step()
+
+# 			train_losses.append(loss.item())
+
+# 			print('Loss = ', train_losses[-1])
+			
+# 	except KeyboardInterrupt:
+# 		return
+
+# 	optimizer = optim.Adam(list(model.params()), 0.0001)
+# 	try:
+# 		for epoch in range(1000):
+			
+# 			logits = model(images)
+# 			loss = compute_my_loss(logits, labels)
+
+# 			optimizer.zero_grad()
+# 			loss.backward()
+# 			optimizer.step()
+
+# 			train_losses.append(loss.item())
+
+# 			mean_loss = np.mean(train_losses[-10:])
+# 			print(mean_loss)
+			
+# 	except KeyboardInterrupt:
+# 		return
+
+# if __name__ == '__main__':
+# 	seed_torch()
+# 	train_one_batch()
