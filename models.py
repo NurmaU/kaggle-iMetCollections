@@ -39,6 +39,9 @@ class ResNet(nn.Module):
         else:
             self.net.fc = nn.Linear(self.net.fc.in_features, num_classes)
 
+        # self.net.fc.weight.data.normal_(0, 0.01)
+        # self.net.fc.bias.data = -torch.tensor(1/num_classes).log()
+
     def fresh_params(self):
         return self.net.fc.parameters()
 

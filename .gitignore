@@ -106,3 +106,6 @@ venv.bak/
 
 dataset/*
 savings/*
+submissions/*.csv
+data/one_batch_images.npy
+data/one_batch_labels.npy

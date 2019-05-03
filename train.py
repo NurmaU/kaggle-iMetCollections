@@ -87,7 +87,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 	
 	try:
 		for epoch in range(config.train.num_epochs):
-			epoch += 1
+			
 			tq = tqdm.tqdm(total=len(train_loader) * config.train.batch_size)
 			model.train()
 			for step, (images, labels) in enumerate(train_loader):
@@ -179,7 +179,8 @@ def main(config):
 	
 	train_loader = make_loader(train_folds, train_transform, config)
 	valid_loader = make_loader(valid_folds, test_transform, config)
-	 
+	
+	
 	model = getattr(models, config.model.name)(pretrained=True, num_classes=N_CLASSES).to(device)
 	
 	fresh_params = list(model.fresh_params())
@@ -206,9 +207,70 @@ def get_args(config_path):
 
 	return config
 
-if __name__ =='__main__':
+# if __name__ =='__main__':
+# 	seed_torch()
+# 	args = parse_args()
+# 	config = get_args(args.config)
+# 	pprint(config)
+# 	main(config)
+
+def train_one_batch():
+
+
+	images = np.load('./data/one_batch_images.npy')
+	labels = np.load('./data/one_batch_labels.npy')
+	
+
+	model = getattr(models, 'resnet50')(pretrained=True, num_classes=N_CLASSES).to(device)
+	
+	train_losses = []
+	
+	model.train()
+	images = torch.from_numpy(images).to(device)
+	labels = torch.from_numpy(labels).to(device)
+	
+	images = images[0].unsqueeze(0)
+	labels = labels[0].unsqueeze(0)
+	print(labels.cpu().numpy().sum())
+
+	optimizer = optim.Adam(list(model.fresh_params()), 0.1)
+	try:
+		for epoch in range(1000):
+			
+
+			logits = model(images)
+			loss = compute_my_loss(logits, labels)
+
+			optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
+
+			train_losses.append(loss.item())
+
+			print('Loss = ', train_losses[-1])
+			
+	except KeyboardInterrupt:
+		return
+
+	optimizer = optim.Adam(list(model.params()), 0.0001)
+	try:
+		for epoch in range(1000):
+			
+			logits = model(images)
+			loss = compute_my_loss(logits, labels)
+
+			optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
+
+			train_losses.append(loss.item())
+
+			mean_loss = np.mean(train_losses[-10:])
+			print(mean_loss)
+			
+	except KeyboardInterrupt:
+		return
+
+if __name__ == '__main__':
 	seed_torch()
-	args = parse_args()
-	config = get_args(args.config)
-	pprint(config)
-	main(config)
+	train_one_batch()
