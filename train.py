@@ -197,6 +197,7 @@ def parse_args():
 	parser = argparse.ArgumentParser()
 	arg = parser.add_argument
 	arg('--config', type=str)
+	arg('--batch_size', type=int, default=32)
 	args = parser.parse_args()
 
 	return args
