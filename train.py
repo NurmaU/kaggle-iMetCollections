@@ -16,10 +16,10 @@ import torch.optim as optim
 import torch.nn as nn
 
 import models
-from transforms import train_transform, test_transform
+from transforms import transform_func #train_transform, test_transform,
 from dataset import TrainDataset
 from utils import ThreadingDataLoader as DataLoader, write_event, load, get_score, binarize_prediction
-from loss import FocalLoss
+#from loss import FocalLoss
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -44,7 +44,6 @@ def seed_torch(seed=1029):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
-
 def train(model, train_loader, valid_loader, params, config, fresh=False):
 
 	save = lambda epoch: torch.save({
@@ -52,14 +51,14 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 		'epoch': epoch,
 		'train_losses':train_losses,
 		'valid_losses':valid_losses,
-		'lr':config.lr,
+		'lr':lr,
 		'best_valid_loss':best_valid_loss,
 		'best_f2score':best_f2score,
-	}, f'./savings/{config.model.name}_fold{config.data.fold}/model.pt')
+	}, f'./savings/{config.model.name}_fold{config.fold}/model.pt')
 
 	init_optimizer = lambda params, lr: optim.Adam(params, lr)
 
-	model_path = Path('./savings/')/(config.model.name + f'_fold{config.data.fold}')
+	model_path = Path('./savings/')/(config.model.name + f'_fold{config.fold}')
 	
 	if not model_path.exists():
 		model_path.mkdir(parents=True, exist_ok=True)
@@ -85,12 +84,10 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 	#lr_changes = 0
 	#max_lr_changes = 4
 	non_changed_epochs = 0
-	
-	optimizer = init_optimizer(params, lr=config.lr)
-	log_dir = Path(f'./savings/{config.model.name}_fold{config.data.fold}/train.log').open('at', encoding='utf8')
-	
 	lr = config.lr
-
+	optimizer = init_optimizer(params, lr=lr)
+	log_dir = Path(f'./savings/{config.model.name}_fold{config.fold}/train.log').open('at', encoding='utf8')
+	
 	try:
 		for epoch in range(config.train.num_epochs):
 			tq = tqdm.tqdm(total=len(train_loader) * config.batch_size)
@@ -102,7 +99,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 				labels = labels.to(device)
 
 				logits = model(images)
-				logits = torch.sigmoid(logits)
+				#logits = torch.sigmoid(logits)
 				
 				loss = compute_my_loss(logits, labels)
 
@@ -125,7 +122,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 						valid_loss=f'{valid_loss:.5f}', 
 						best_loss=f'{best_valid_loss:.5f}',
 						best_f2score = f'{best_f2score:.5f}')
-				
+
 
 			write_event(log_dir, step, 
 				loss = f'{mean_loss:.5f}', 
@@ -145,7 +142,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 
 			if current_f2score > best_f2score:
 				best_f2score = current_f2score
-				shutil.copy(f'./savings/{config.model.name}_fold{config.data.fold}/model.pt', f'./savings/{config.model.name}_fold{config.data.fold}/best_model.pt')
+				shutil.copy(f'./savings/{config.model.name}_fold{config.fold}/model.pt', f'./savings/{config.model.name}_fold{config.fold}/best_model.pt')
 				non_changed_epochs = 0
 			else:
 				non_changed_epochs += 1
@@ -156,7 +153,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 
 			# if valid_loss < best_valid_loss:
 			# 	best_valid_loss = valid_loss
-			# 	shutil.copy(f'./savings/{config.model.name}_fold{config.data.fold}/model.pt', f'./savings/{config.model.name}_fold{config.data.fold}/best_model.pt')
+			# 	shutil.copy(f'./savings/{config.model.name}_fold{config.fold}/model.pt', f'./savings/{config.model.name}_fold{config.fold}/best_model.pt')
 			# 	non_changed_epochs = 0
 			# else:
 			# 	non_changed_epochs += 1
@@ -173,7 +170,7 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 	
 	except KeyboardInterrupt:
 		tq.close()
-		print(f'Trained Epochs = {epoch}, Iterations = {step}')
+		print(f'Trained Epochs = {epoch}, Iterations = {step}, lr = {lr}')
 		return
 
 def validate(model, valid_loader):
@@ -216,12 +213,13 @@ def validate(model, valid_loader):
 def main(config):
 	folds = pd.read_csv(config.data.folds_dir)
 
-	train_folds = folds[folds['fold'] != config.data.fold]
-	valid_folds = folds[folds['fold'] == config.data.fold]
+	train_folds = folds[folds['fold'] != config.fold]
+	valid_folds = folds[folds['fold'] == config.fold]
+	train_transform = transform_func(config.model.input_shape)
+	test_transform = transform_func(config.model.input_shape)
 	
 	train_loader = make_loader(train_folds, train_transform, config)
 	valid_loader = make_loader(valid_folds, test_transform, config)
-	
 	
 	model = getattr(models, config.model.name)(pretrained=True, num_classes=N_CLASSES).to(device)
 	
@@ -241,6 +239,7 @@ def parse_args():
 	arg('--config', type=str)
 	arg('--batch_size', type=int, default=32)
 	arg('--lr', type=float)
+	arg('--fold', type=int)
 	args = parser.parse_args()
 
 	with open(args.config) as f:

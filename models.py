@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 import torchvision.models as M
+import pretrainedmodels
 
 ON_KAGGLE = False
 
@@ -69,6 +70,19 @@ class DenseNet(nn.Module):
         out = self.net.classifier(out)
         return out
 
+class SeResNext101_32x4d(nn.Module):
+    def __init__(self, name, num_classes, pretrained=True):
+        super().__init__()
+        self.name = name#'se_resnext101_32x4d'
+        self.net = pretrainedmodels.__dict__[self.name](num_classes=1000, pretrained='imagenet')
+        self.net.last_linear = nn.Linear(self.net.last_linear.in_features, num_classes)
+    
+    def fresh_params(self):
+        return self.net.last_linear.parameters()
+    
+    def forward(self, x):
+        x = self.net(x)
+        return x
 
 resnet18 = partial(ResNet, net_cls=M.resnet18)
 resnet34 = partial(ResNet, net_cls=M.resnet34)
@@ -80,3 +94,5 @@ densenet121 = partial(DenseNet, net_cls=M.densenet121)
 densenet169 = partial(DenseNet, net_cls=M.densenet169)
 densenet201 = partial(DenseNet, net_cls=M.densenet201)
 densenet161 = partial(DenseNet, net_cls=M.densenet161)
+
+se_resnext101_32x4d = partial(SeResNext101_32x4d, name='se_resnext101_32x4d')

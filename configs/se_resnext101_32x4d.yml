@@ -1,16 +1,17 @@
 mode: 'train'
 
 model:
-    name: 'resnet50'
+    name: 'se_resnext101_32x4d'
+    input_shape: 224
 
 data:
-    fold: 1
+
     train_dir: './dataset/train/'
     folds_dir: './data/folds.csv'
 
 train:
-    batch_size: 50
-    num_epochs: 10
+    batch_size: 64
+    num_epochs: 30
     report_each: 10
     patience: 10
 
