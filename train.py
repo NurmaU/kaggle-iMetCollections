@@ -221,7 +221,8 @@ def main(config):
 	train_loader = make_loader(train_folds, train_transform, config)
 	valid_loader = make_loader(valid_folds, test_transform, config)
 	
-	model = getattr(models, config.model.name)(pretrained=True, num_classes=N_CLASSES).to(device)
+	model = getattr(models, config.model.name)(pretrained=True, num_classes=N_CLASSES)
+	model = nn.DataParallel(model).to(device)
 	
 	fresh_params = list(model.fresh_params())
 	all_params = list(model.parameters())
