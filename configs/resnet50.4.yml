@@ -10,9 +10,9 @@ data:
 
 train:
     batch_size: 50
-    num_epochs: 10
+    num_epochs: 30
     report_each: 10
-    patience: 10
+    patience: 2
 
 optimizer:
     name: 'adam'

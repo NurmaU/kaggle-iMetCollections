@@ -19,6 +19,7 @@ import models
 from transforms import train_transform, test_transform
 from dataset import TrainDataset
 from utils import ThreadingDataLoader as DataLoader, write_event, load, get_score, binarize_prediction
+from loss import FocalLoss
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -43,6 +44,7 @@ def seed_torch(seed=1029):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
+
 def train(model, train_loader, valid_loader, params, config, fresh=False):
 
 	save = lambda epoch: torch.save({
@@ -50,8 +52,9 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 		'epoch': epoch,
 		'train_losses':train_losses,
 		'valid_losses':valid_losses,
-		'lr':config.optimizer.params.lr,
+		'lr':config.lr,
 		'best_valid_loss':best_valid_loss,
+		'best_f2score':best_f2score,
 	}, f'./savings/{config.model.name}_fold{config.data.fold}/model.pt')
 
 	init_optimizer = lambda params, lr: optim.Adam(params, lr)
@@ -71,23 +74,25 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 		else:
 			valid_loss = float('inf')
 		best_valid_loss = state['best_valid_loss']
+		best_f2score = state['best_f2score']
 	else:
 		train_losses = []
 		valid_losses = []
 		best_valid_loss = float('inf')
+		best_f2score = 0
 		valid_loss = float('inf')
 	
-	lr_changes = 0
-	max_lr_changes = 4
+	#lr_changes = 0
+	#max_lr_changes = 4
 	non_changed_epochs = 0
 	
-	optimizer = init_optimizer(params, lr=config.optimizer.params.lr)
+	optimizer = init_optimizer(params, lr=config.lr)
 	log_dir = Path(f'./savings/{config.model.name}_fold{config.data.fold}/train.log').open('at', encoding='utf8')
 	
-	
+	lr = config.lr
+
 	try:
 		for epoch in range(config.train.num_epochs):
-			
 			tq = tqdm.tqdm(total=len(train_loader) * config.batch_size)
 			model.train()
 			for step, (images, labels) in enumerate(train_loader):
@@ -97,6 +102,8 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 				labels = labels.to(device)
 
 				logits = model(images)
+				logits = torch.sigmoid(logits)
+				
 				loss = compute_my_loss(logits, labels)
 
 				optimizer.zero_grad()
@@ -107,12 +114,25 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 
 				tq.update(config.batch_size)
 				mean_loss = np.mean(train_losses[-config.train.report_each:])
-				tq.set_postfix(train_loss=f'{mean_loss:.5f}', valid_loss=valid_loss, best_valid_loss=best_valid_loss)
+				tq.set_postfix(train_loss=f'{mean_loss:.5f}', 
+					valid_loss=valid_loss, 
+					best_valid_loss=best_valid_loss,
+					best_f2score = best_f2score)
 				
 				if step and step % config.train.report_each == 0:
-					write_event(log_dir, step, loss = f'{mean_loss:.5f}', valid_loss=f'{valid_loss:.5f}', best_loss=f'{best_valid_loss:.5f}')
+					write_event(log_dir, step, 
+						loss = f'{mean_loss:.5f}', 
+						valid_loss=f'{valid_loss:.5f}', 
+						best_loss=f'{best_valid_loss:.5f}',
+						best_f2score = f'{best_f2score:.5f}')
+				
 
-			write_event(log_dir, step, loss = f'{mean_loss:.5f}', valid_loss=f'{valid_loss:.5f}', best_loss=f'{best_valid_loss:.5f}')				
+			write_event(log_dir, step, 
+				loss = f'{mean_loss:.5f}', 
+				valid_loss=f'{valid_loss:.5f}', 
+				best_loss=f'{best_valid_loss:.5f}',
+				best_f2score = f'{best_f2score:.5f}')
+
 			tq.close()
 			save(epoch)
 
@@ -120,20 +140,34 @@ def train(model, train_loader, valid_loader, params, config, fresh=False):
 			write_event(log_dir, step, **metrics)
 			valid_loss = metrics['valid_loss']
 			valid_losses.append(valid_loss)
-		
-			if valid_loss < best_valid_loss:
-				best_valid_loss = valid_loss
+
+			current_f2score = metrics['max_f2score']
+
+			if current_f2score > best_f2score:
+				best_f2score = current_f2score
 				shutil.copy(f'./savings/{config.model.name}_fold{config.data.fold}/model.pt', f'./savings/{config.model.name}_fold{config.data.fold}/best_model.pt')
 				non_changed_epochs = 0
 			else:
 				non_changed_epochs += 1
 				if non_changed_epochs > config.train.patience:
-					lr_changes += 1
-					if lr_changes > max_lr_changes:
-						break
 					lr = lr / 5
 					non_changed_epochs = 0
-					optimizer = init_optimizer(params, lr)
+					optimizer = init_optimizer(params, lr) 
+
+			# if valid_loss < best_valid_loss:
+			# 	best_valid_loss = valid_loss
+			# 	shutil.copy(f'./savings/{config.model.name}_fold{config.data.fold}/model.pt', f'./savings/{config.model.name}_fold{config.data.fold}/best_model.pt')
+			# 	non_changed_epochs = 0
+			# else:
+			# 	non_changed_epochs += 1
+			# 	if non_changed_epochs > config.train.patience:
+			# 		lr_changes += 1
+			# 		if lr_changes > max_lr_changes:
+			# 			break
+			# 		lr = lr / 5
+			# 		non_changed_epochs = 0
+			# 		optimizer = init_optimizer(params, lr)
+			
 			if fresh:
 				break
 	
@@ -169,6 +203,14 @@ def validate(model, valid_loader):
 	
 	metrics['valid_loss'] = np.mean(losses)
 	
+
+	f2_scores = []
+	for k, v in metrics.items():
+		if 'valid' in k:
+			f2_scores.append(v)
+
+	metrics['max_f2score'] = max(f2_scores)
+
 	return metrics
 
 def main(config):
@@ -187,7 +229,7 @@ def main(config):
 	all_params = list(model.parameters())
 
 	if config.mode == 'train':
-		#train(model, train_loader, valid_loader, fresh_params, config, fresh=True)
+		train(model, train_loader, valid_loader, fresh_params, config, fresh=True)
 		train(model, train_loader, valid_loader, all_params, config)
 	elif config.mode == 'validate':
 		metrics = validate(model, valid_loader)
@@ -198,6 +240,7 @@ def parse_args():
 	arg = parser.add_argument
 	arg('--config', type=str)
 	arg('--batch_size', type=int, default=32)
+	arg('--lr', type=float)
 	args = parser.parse_args()
 
 	with open(args.config) as f:
@@ -206,75 +249,9 @@ def parse_args():
 
 	return edict(config)
 
-def get_args(config_path):
-	
-
-	return config
-
 if __name__ =='__main__':
 	seed_torch()
 	config = parse_args()
 	
 	pprint(config)
 	main(config)
-
-# def train_one_batch():
-
-
-# 	images = np.load('./data/one_batch_images.npy')
-# 	labels = np.load('./data/one_batch_labels.npy')
-	
-
-# 	model = getattr(models, 'resnet50')(pretrained=True, num_classes=N_CLASSES).to(device)
-	
-# 	train_losses = []
-	
-# 	model.train()
-# 	images = torch.from_numpy(images).to(device)
-# 	labels = torch.from_numpy(labels).to(device)
-	
-# 	images = images[0].unsqueeze(0)
-# 	labels = labels[0].unsqueeze(0)
-# 	print(labels.cpu().numpy().sum())
-
-# 	optimizer = optim.Adam(list(model.fresh_params()), 0.1)
-# 	try:
-# 		for epoch in range(1000):
-			
-
-# 			logits = model(images)
-# 			loss = compute_my_loss(logits, labels)
-
-# 			optimizer.zero_grad()
-# 			loss.backward()
-# 			optimizer.step()
-
-# 			train_losses.append(loss.item())
-
-# 			print('Loss = ', train_losses[-1])
-			
-# 	except KeyboardInterrupt:
-# 		return
-
-# 	optimizer = optim.Adam(list(model.params()), 0.0001)
-# 	try:
-# 		for epoch in range(1000):
-			
-# 			logits = model(images)
-# 			loss = compute_my_loss(logits, labels)
-
-# 			optimizer.zero_grad()
-# 			loss.backward()
-# 			optimizer.step()
-
-# 			train_losses.append(loss.item())
-
-# 			mean_loss = np.mean(train_losses[-10:])
-# 			print(mean_loss)
-			
-# 	except KeyboardInterrupt:
-# 		return
-
-# if __name__ == '__main__':
-# 	seed_torch()
-# 	train_one_batch()

@@ -23,10 +23,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def get_classes(item):
 	return ' '.join(cls for cls, is_present in item.items() if is_present)
 
-def main(configs):
+def main(config):
 	"""
 	model: trained model
-	configs: from config folder 
+	config: from config folder 
 	"""
 	model = getattr(models, config.model.name)(num_classes=N_CLASSES).to(device)
 	load(model, f'./savings/{config.model.name}_fold{config.data.fold}/best_model.pt')
