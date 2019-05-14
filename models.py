@@ -70,10 +70,10 @@ class DenseNet(nn.Module):
         out = self.net.classifier(out)
         return out
 
-class SeResNext101_32x4d(nn.Module):
+class PretrainedModels(nn.Module):
     def __init__(self, name, num_classes, pretrained=True):
         super().__init__()
-        self.name = name#'se_resnext101_32x4d'
+        self.name = name
         self.net = pretrainedmodels.__dict__[self.name](num_classes=1000, pretrained='imagenet')
         self.net.last_linear = nn.Linear(self.net.last_linear.in_features, num_classes)
     
@@ -95,4 +95,6 @@ densenet169 = partial(DenseNet, net_cls=M.densenet169)
 densenet201 = partial(DenseNet, net_cls=M.densenet201)
 densenet161 = partial(DenseNet, net_cls=M.densenet161)
 
-se_resnext101_32x4d = partial(SeResNext101_32x4d, name='se_resnext101_32x4d')
+se_resnext101_32x4d = partial(PretrainedModels, name='se_resnext101_32x4d')
+nasnetalarge = partial(PretrainedModels, name = 'nasnetalarge')
+nasnetamobile = partial(PretrainedModels, name = 'nasnetamobile')

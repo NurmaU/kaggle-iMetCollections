@@ -1,0 +1,20 @@
+mode: 'train'
+
+model:
+    name: 'nasnetamobile'
+    input_shape: 224
+
+data:
+    train_dir: './dataset/train/'
+    folds_dir: './data/folds.csv'
+
+train:
+    batch_size: 50
+    num_epochs: 30
+    report_each: 10
+    patience: 2
+
+optimizer:
+    name: 'adam'
+    params:
+        lr : 0.0001

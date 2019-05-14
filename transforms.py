@@ -63,7 +63,7 @@ test_transform = Compose([
 ])
 
 transform_func = lambda size:  Compose([
-    RandomCrop(size),
+    RandomSizedCrop(size),
     RandomHorizontalFlip(),
 ])
 

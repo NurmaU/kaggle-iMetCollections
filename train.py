@@ -18,7 +18,7 @@ import torch.nn as nn
 import models
 from transforms import transform_func #train_transform, test_transform,
 from dataset import TrainDataset
-from utils import ThreadingDataLoader as DataLoader, write_event, load, get_score, binarize_prediction, MyDataParallel
+from utils import ThreadingDataLoader as DataLoader, write_event, load, get_score, binarize_prediction#, MyDataParallel
 #from loss import FocalLoss
 
 
@@ -28,7 +28,7 @@ N_CLASSES = 1103
 
 def make_loader(df, image_transform, config):
 	dataset = TrainDataset(Path(config.data.train_dir), df, image_transform, debug = False)
-	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.batch_size, num_workers=32)
+	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.batch_size, num_workers=6)
 	return dataloader
 
 def compute_my_loss(logits, target):
@@ -191,6 +191,8 @@ def validate(model, valid_loader):
 	
 	predictions = np.concatenate(predictions)
 	targets = np.concatenate(targets)
+	np.save('./savings/predictions.npy', predictions)
+	np.save('./savings/targets.npy', targets)
 	
 	argsorted = predictions.argsort(axis=1)
 	metrics = {}
@@ -203,7 +205,7 @@ def validate(model, valid_loader):
 
 	f2_scores = []
 	for k, v in metrics.items():
-		if 'valid' in k:
+		if 'valid_2f_th_' in k:
 			f2_scores.append(v)
 
 	metrics['max_f2score'] = max(f2_scores)
@@ -232,17 +234,20 @@ def main(config):
 		fresh_params = list(model.fresh_params())
 		all_params = list(model.parameters())
 
-		
+	
 	if config.mode == 'train':
 		train(model, train_loader, valid_loader, fresh_params, config, fresh=True)
 		train(model, train_loader, valid_loader, all_params, config)
 	elif config.mode == 'validate':
+		model_path = Path('./savings/')/(config.model.name + f'_fold{config.fold}')
+		_ = load(model, str(model_path/'best_model.pt'))
 		metrics = validate(model, valid_loader)
 		pprint(metrics)
 
 def parse_args():
 	parser = argparse.ArgumentParser()
 	arg = parser.add_argument
+	arg('--mode', type=str, default='train')
 	arg('--config', type=str)
 	arg('--batch_size', type=int, default=32)
 	arg('--lr', type=float)

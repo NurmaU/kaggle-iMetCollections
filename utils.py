@@ -19,10 +19,6 @@ from torch.utils.data import DataLoader
 ON_KAGGLE: bool = 'KAGGLE_WORKING_DIR' in os.environ
 N_CLASSES = 1103
 
-class MyDataParallel(nn.DataParallel):
-    def __getattr__(self, name):
-        return getattr(self.module, name)
-
 def gmean_df(df: pd.DataFrame) -> pd.DataFrame:
     return df.groupby(level=0).agg(lambda x: gmean(list(x)))
 
