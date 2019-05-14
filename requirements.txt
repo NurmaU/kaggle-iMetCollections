@@ -1,0 +1,10 @@
+torch==1.0.0
+pretrainedmodels
+easydict
+pandas
+numpy
+tqdm
+pyyaml
+pprint
+opencv-python==3.4.3.18
+scikit-learn==0.20.2
