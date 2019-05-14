@@ -29,7 +29,7 @@ def main(config):
 	config: from config folder 
 	"""
 	model = getattr(models, config.model.name)(num_classes=N_CLASSES).to(device)
-	load(model, f'./savings/{config.model.name}_fold{config.data.fold}/best_model.pt')
+	load(model, f'./savings/{config.model.name}_fold{config.fold}/best_model.pt')
 
 	sample = pd.read_csv('./dataset/sample_submission.csv')
 	test_image_path = Path('./dataset/test/')
@@ -67,7 +67,7 @@ def main(config):
 	submit_path = Path('./submissions/')
 	if not submit_path.exists():
 		submit_path.mkdir(parents=True, exist_ok=True)
-	df.to_csv(submit_path/(f'{config.model.name}_{config.data.fold}_{config.threshold}.csv'), header=True)
+	df.to_csv(submit_path/(f'{config.model.name}_{config.fold}_{config.threshold}.csv'), header=True)
 
 
 def parse_args():
