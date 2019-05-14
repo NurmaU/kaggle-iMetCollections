@@ -28,7 +28,7 @@ N_CLASSES = 1103
 
 def make_loader(df, image_transform, config):
 	dataset = TrainDataset(Path(config.data.train_dir), df, image_transform, debug = False)
-	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.batch_size, num_workers=6)
+	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.batch_size, num_workers=32)
 	return dataloader
 
 def compute_my_loss(logits, target):

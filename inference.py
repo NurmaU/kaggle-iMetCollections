@@ -76,6 +76,7 @@ def parse_args():
 	arg('--config', type=str)
 	arg('--save_probs', type=str)
 	arg('--threshold', type=float)
+	arg('--fold', type=int)
 	args = parser.parse_args()
 
 	with open(args.config) as f:
