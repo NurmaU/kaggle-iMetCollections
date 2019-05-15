@@ -12,7 +12,7 @@ import numpy as np
 
 import models
 from dataset import TTADataset
-from transforms import test_transform
+from transforms import  transform_func
 from utils import mean_df, binarize_prediction, load
 from utils import ThreadingDataLoader as DataLoader
 from pprint import pprint
@@ -33,6 +33,7 @@ def main(config):
 
 	sample = pd.read_csv('./dataset/sample_submission.csv')
 	test_image_path = Path('./dataset/test/')
+	test_transform = transform_func(config.model.input_shape)
 	test_dataset = TTADataset(test_image_path, sample, test_transform, 4)
 	test_loader = DataLoader(test_dataset, shuffle=False, batch_size=config.train.batch_size, num_workers=6)
 	
