@@ -28,7 +28,10 @@ N_CLASSES = 1103
 
 def make_loader(df, image_transform, config):
 	dataset = TrainDataset(Path(config.data.train_dir), df, image_transform, debug = False)
-	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.batch_size, num_workers=6)
+	num_workers = 6
+	if torch.cuda.device_count() > 1:
+		num_workers = 48
+	dataloader = DataLoader(dataset, shuffle=True, batch_size=config.batch_size, num_workers=num_workers)
 	return dataloader
 
 def compute_my_loss(logits, target):
