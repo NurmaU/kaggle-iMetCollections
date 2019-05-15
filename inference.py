@@ -28,8 +28,9 @@ def main(config):
 	model: trained model
 	config: from config folder 
 	"""
-	model = getattr(models, config.model.name)(num_classes=N_CLASSES).to(device)
+	model = getattr(models, config.model.name)(num_classes=N_CLASSES)
 	load(model, f'./savings/{config.model.name}_fold{config.fold}/best_model.pt')
+	model = model.to(device)
 
 	sample = pd.read_csv('./dataset/sample_submission.csv')
 	test_image_path = Path('./dataset/test/')
