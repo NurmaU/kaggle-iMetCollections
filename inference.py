@@ -29,6 +29,8 @@ def main(config):
 	config: from config folder 
 	"""
 	model = getattr(models, config.model.name)(num_classes=N_CLASSES)
+	if torch.cuda.device_count()>1:
+		model = nn.DataParallel(model)
 	load(model, f'./savings/{config.model.name}_fold{config.fold}/best_model.pt')
 	model = model.to(device)
 
